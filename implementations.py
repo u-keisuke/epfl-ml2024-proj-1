@@ -189,10 +189,32 @@ def ridge_regression(y, tx, lambda_):
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """Logistic regression using gradient descent. (y in {-1, 1})
     """
-    raise NotImplementedError
+    def sigmoid(t):
+        return 1 / (1 + np.exp(-t))
+
+    w = initial_w
+    for _ in range(max_iters):
+        pred = tx @ w
+        gradient = -tx.T @ (y * sigmoid(-y * pred))
+        w = w - gamma * gradient
+    # Compute the final loss
+    loss = np.sum(np.log(1 + np.exp(-y * (tx @ w))))
+
+    return w, loss
 
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     """Regularized logistic regression using gradient descent. (y in {-1, 1} with regularization term lambda_*||w||^2)
     """
-    raise NotImplementedError
+    def sigmoid(t):
+        return 1 / (1 + np.exp(-t))
+
+    w = initial_w
+    for _ in range(max_iters):
+        pred = tx @ w
+        gradient = -tx.T @ (y * sigmoid(-y * pred)) + 2 * lambda_ * w
+        w = w - gamma * gradient
+    # Compute the final loss
+    loss = np.sum(np.log(1 + np.exp(-y * (tx @ w)))) + lambda_ * np.linalg.norm(w) ** 2
+    
+    return w, loss
