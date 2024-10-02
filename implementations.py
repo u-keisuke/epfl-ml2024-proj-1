@@ -12,6 +12,8 @@
 
 
 import numpy as np
+
+
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
     Generate a minibatch iterator for a dataset.
@@ -70,6 +72,8 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
             start_index + batch_size
         )  # The first data point of the following batch
         yield y[start_index:end_index], tx[start_index:end_index]
+
+
 def compute_loss(y, tx, w):
     """Calculate the loss using either MSE or MAE.
 
@@ -86,6 +90,8 @@ def compute_loss(y, tx, w):
     # TODO: compute loss by MSE
     # ***************************************************
     return 1/2/len(y)*sum((y - tx @ w) ** 2)
+
+
 def compute_stoch_gradient(y, tx, w):
     """Compute a stochastic gradient at w from just few examples n and their corresponding y_n labels.
 
@@ -104,6 +110,7 @@ def compute_stoch_gradient(y, tx, w):
     # ***************************************************
     return -1./len(y) * tx.T @ (y - tx @ w)
 
+
 def compute_gradient(y, tx, w):
     """Computes the gradient at w.
 
@@ -120,6 +127,7 @@ def compute_gradient(y, tx, w):
     # TODO: compute gradient vector
     # ***************************************************
     return -1./len(y) * tx.T @ (y - tx @ w)
+
 
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """Linear regression using gradient descent.
@@ -143,7 +151,6 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         w -= gamma * grad
         # store w and loss
     return w, loss
-
 
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
