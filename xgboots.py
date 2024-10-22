@@ -8,99 +8,91 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from xgboost import XGBClassifier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score  # Add f1_score to the imports
 
-# Step 1: Load the datasets
+import numpy as np
+
 x_train = pd.read_csv('dataset/x_train.csv', index_col=0)
 y_train = pd.read_csv('dataset/y_train.csv', index_col=0)  # Assuming y_train is a separate file
-x_test = pd.read_csv('dataset/x_test.csv', index_col=0)
+# x_test = pd.read_csv('dataset/x_test.csv', index_col=0)
 
-# Step 2: Split x_train into x_train and x_val, and also y_train into y_train and y_val
 y_train[y_train==-1] = 0
-
-# print(x_train.columns)
-# print(x_train.describe())
-# print(x_train["_FLSHOT6"])
 x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
-# print(y_train)
+
 
 y_train = y_train.values.ravel()
 y_val = y_val.values.ravel()
 
-# Step 3: Preprocess data (if needed)
-# print(f'Missing values in x_train:\n{x_train.isnull().sum()}\n')
-# print(f'Missing values in x_val:\n{x_val.isnull().sum()}\n')
-# num_cols_with_nan = (x_train.isnull().sum() > 0).sum()
-# x_train.fillna(x_train.mean(), inplace=True)
-# x_val.fillna(x_val.mean(), inplace=True)
-# x_test.fillna(x_test.mean(), inplace=True)
-
 x_train.fillna(0, inplace=True)
 x_val.fillna(0, inplace=True)
-x_test.fillna(0, inplace=True)
 
+x_train = np.array(x_train)
+x_train_1 = x_train[y_train == 1]
+y_train_1 = y_train[y_train == 1]
+x_train_0 = x_train[y_train == 0]
+y_train_0 = y_train[y_train == 0]
 
-# scaler = StandardScaler()
-# x_train_scaled = scaler.fit_transform(x_train)
-# x_val_scaled = scaler.transform(x_val)
-# x_test_scaled = scaler.transform(x_test)
-# pca = PCA(n_components=50)  # Adjust the number of components as needed
-# x_train_pca = pca.fit_transform(x_train_scaled)
-# x_val_pca = pca.transform(x_val_scaled)
-# x_test_pca = pca.transform(x_test_scaled)
+####################################### Balancing the data #########################
 
-# Step 4: Train the XGBoost model
+# x_train = np.concatenate([x_train] + [x_train_1] * 9)
+# y_train = np.concatenate([y_train] + [y_train_1] * 9)
+# x_val_0 = x_val[y_val == 1]
+# y_val_0 = y_val[y_val == 1]
+# x_val = np.concatenate([x_val] + [x_val_0] * 9)
+# y_val = np.concatenate([y_val] + [y_val_0] * 9)
+# Validation Accuracy: 73.59%
+# Validation F1 Score: 0.69
+
+num_samples_to_select = int(len(x_train_1) * 2.5)
+random_indices = np.random.choice(len(x_train_0), size=num_samples_to_select, replace=False)
+x_train_0_undersampled = x_train_0[random_indices]
+y_train_0_undersampled = y_train_0[random_indices]
+x_train = np.concatenate([x_train_0_undersampled, x_train_1])
+y_train = np.concatenate([y_train_0_undersampled, y_train_1])
+shuffle_indices = np.random.permutation(len(y_train))
+x_train = x_train[shuffle_indices]
+y_train = y_train[shuffle_indices]
+pos = sum(y_train == 1)
+neg = len(y_train) - pos
+print(pos, neg)
+###########################################################################################
+
 dtrain = xgb.DMatrix(x_train, label=y_train)
 dval = xgb.DMatrix(x_val, label=y_val)
-
 params = {
     'objective': 'binary:logistic',  # Binary classification
-    'max_depth': 10,  # Maximum depth of the tree
-    'eta': 0.30,  # Learning rate
-    # 'eval_metric': 'logloss',  # Evaluation metric
+    'max_depth': 12,  # Maximum depth of the tree
+    'eta': 0.10,  # Learning rate
 }
-bst = xgb.train(params, dtrain, num_boost_round=100) #, evals=[(dval, 'eval')],, early_stopping_rounds=50)
+
+bst = xgb.train(params, dtrain, num_boost_round=45) #, evals=[(dval, 'eval')], early_stopping_rounds=30)
 
 y_train_pred_proba = bst.predict(dtrain)  # Get probability predictions
-y_train_pred = [1 if pred > 0.5 else 0 for pred in y_train_pred_proba]  # Convert to 1 or -1
+y_train_pred = [1 if pred > 0.5 else 0 for pred in y_train_pred_proba]  # Convert to 1 or 0
 train_accuracy = accuracy_score(y_train, y_train_pred)
+train_f1 = f1_score(y_train, y_train_pred)  # Calculate F1 score for training
 print(f'Train Accuracy: {train_accuracy * 100:.2f}%')
+print(f'Train F1 Score: {train_f1:.2f}')
 
 y_val_pred_proba = bst.predict(dval)  # Get probability predictions
-y_val_pred = [1 if pred > 0.5 else 0 for pred in y_val_pred_proba]  # Convert to 1 or -1
+y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
 val_accuracy = accuracy_score(y_val, y_val_pred)
 print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
 
 
-# xgb_model = XGBClassifier(objective='binary:logistic', use_label_encoder=False, eval_metric='logloss')
-# param_grid = {
-#     'learning_rate': [0.01, 0.1, 0.2],  # learning rate or 'eta'
-#     'max_depth': [3, 4, 5],  # maximum depth of the trees
-#     'n_estimators': [100, 200, 300],  # number of boosting rounds
-#     'subsample': [0.7, 0.8, 1.0],  # fraction of data to use for training each tree
-#     'colsample_bytree': [0.7, 0.8, 1.0],  # fraction of features to consider at each split
-#     'gamma': [0, 0.1, 0.2],  # minimum loss reduction required to make a further partition
-#     'reg_alpha': [0, 0.1, 0.5],  # L1 regularization term
-#     'reg_lambda': [1, 1.5, 2]  # L2 regularization term
-# }
-# # Step 5: Set up the GridSearchCV
-# grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, 
-#                            scoring='accuracy', cv=3, verbose=1, n_jobs=-1)
+val_f1 = f1_score(y_val, y_val_pred)
+print(f'Validation F1 Score of 1-0: {val_f1:.4f}')
 
-# # Step 6: Fit GridSearchCV on the training data
-# grid_search.fit(x_train, y_train)
+pos = sum(y_val_pred)
+neg = len(y_val_pred) - pos
+print(pos, neg)
 
-# # Step 7: Get the best parameters and the best score
-# best_params = grid_search.best_params_
-# best_score = grid_search.best_score_
+pos = sum(y_val)
+neg = len(y_val) - pos
+print(pos, neg)
 
-# print(f"Best parameters found: {best_params}")
-# print(f"Best cross-validation accuracy: {best_score:.4f}")
-
-# # Step 8: Evaluate the best model on the validation set
-# best_model = grid_search.best_estimator_
-# y_val_pred = best_model.predict(x_val)
-# val_accuracy = accuracy_score(y_val, y_val_pred)
-# print(f"Validation accuracy with the best model: {val_accuracy * 100:.2f}%")
-
-
+# y_val_pred = 1 - y_val_pred
+# y_val = 1 - y_val
+# val_f1 = f1_score(y_val, y_val_pred)  # Calculate F1 score for validation
+# print(f'Validation F1 Score of 0-1: {val_f1:.4f}')
