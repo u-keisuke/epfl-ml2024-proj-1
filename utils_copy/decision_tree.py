@@ -35,7 +35,7 @@ class Node:
         self.right_child = None
         
         
-class DecisionTree(BaseEstimator):
+class DecisionTree():
     all_criterions = {
         'gini': (gini, True), # (criterion, classification flag)
         'entropy': (entropy, True),
@@ -176,7 +176,7 @@ class DecisionTree(BaseEstimator):
             return self.pass_tree(X, node.right_child, prob_include=prob_include)
 
 
-class RandomForest(BaseEstimator):
+class RandomForest():
     clasification_loss = {
         'gini': True, # (criterion, classification flag)
         'entropy': True,
@@ -227,7 +227,6 @@ class RandomForest(BaseEstimator):
     def predict(self, X):
         if self.classification:
             prediction = np.zeros((len(X), self.n_classes))
-            # #by probabilities
             if self.classif_type == "proba":
                 for Tree in self.Forest:
                     prediction = + Tree.predict_proba(X)

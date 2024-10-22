@@ -70,7 +70,6 @@ class PCA():
         vector2 = eigenvectors[:, 1] * eigenvalues[1] #  np.sqrt()
         theta = np.linspace(0, 2 * np.pi, 1000)
         ellipsis = (eigenvectors * eigenvalues[None,:]) @ [np.sin(theta), np.cos(theta)] #np.sqrt()
-        # print(eigenvectors * np.sqrt(eigenvalues[None,:]) )
         plt.figure(figsize=(12,7))
         plt.plot(ellipsis[0,:], ellipsis[1,:], color='yellow')
         plt.scatter(self.X.T[0], self.X.T[1])

@@ -39,9 +39,7 @@ x_train.fillna(0, inplace=True)
 ############################### High correlated features
 # corr_matrix = x_train.corr().abs()
 # upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-# to_drop = [column for column in upper.columns if any(upper[column] > 0.9)]
-# print(to_drop)
-# to_drop = ['IMONTH', '_PSU', 'PVTRESD1', 'STATERES', 'LADULT', 'CTELNUM1', 'CELLFON2', 'CADULT', 'PVTRESD2', 'CSTATE', 'LANDLINE', 'NUMHHOL2', 'VIGLUMA2', 'VIMACDG2', 'CDASSIST', 'CDSOCIAL', 'ASPUNSAF', 'ARTHEDU', 'SCNTMEL1', 'ADFAIL', 'ADTHINK', 'ADMOVE', 'MISTMNT', 'ADANXEV', 'QSTVER', '_STSTR', '_RAWRAKE', '_WT2RAKE', '_CPRACE', '_DUALCOR', '_MRACE1', '_RACEGR3', '_AGE65YR', '_AGE80', '_AGE_G', 'HTM4', '_BMI5CAT', '_EDUCAG', 'DROCDY3_', '_RFBING5', '_DRNKWEK', '_RFDRHV5', '_MISVEGN', '_FRTRESP', '_VEGRESP', '_FRTLT1', '_VEGLT1', '_FRUITEX', '_VEGETEX', 'FC60_', 'ACTIN21_', 'PAMISS1_', 'PAMIN11_', 'PAMIN21_', '_PAINDX1', '_PA150R2', '_PA300R2', '_PA30021', '_PAREC1', '_PASTAE1', '_RFSEAT2', '_RFSEAT3', '_PNEUMO2', '_AIDTST3']
+# to_drop = [column for column in upper.columns if any(upper[column] > 0.95)]
 # x_train = x_train.drop(columns=to_drop)
 ################################################## PCA
 # pca = PCA(n_components=150)  
@@ -86,7 +84,8 @@ x_val = xgb.DMatrix(x_val, label=y_val)
 params = {
     'objective': 'binary:logistic',
     'max_depth': 6,
-    'eta': 0.10  # Initial learning rate
+    'eta': 0.10,  # Initial learning rate
+    # "min_child_weight": 5
 }
 num_boost_round = 160
 eta_decay = 0.95  # Factor to decrease eta
