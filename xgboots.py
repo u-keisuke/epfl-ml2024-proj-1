@@ -8,32 +8,54 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from xgboost import XGBClassifier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, f1_score  # Add f1_score to the imports
+from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
+from sklearn.feature_selection import VarianceThreshold
 
 import numpy as np
 
 x_train = pd.read_csv('dataset/x_train.csv', index_col=0)
 y_train = pd.read_csv('dataset/y_train.csv', index_col=0)  # Assuming y_train is a separate file
-# x_test = pd.read_csv('dataset/x_test.csv', index_col=0)
-
 y_train[y_train==-1] = 0
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
+# x_test = pd.read_csv('dataset/x_test.csv', index_col=0)
+# print(x_train.describe())
+# print(x_train.head())
 
+####################################################### drop nan values
+# threshold = 0.5 * len(x_train)
+# columns_to_drop = x_train.columns[x_train.isnull().sum() > threshold]
+# print(columns_to_drop)
 
-y_train = y_train.values.ravel()
-y_val = y_val.values.ravel()
+# x_train = x_train.dropna(axis=1, thresh=threshold)
+# print(x_train.head())
 
 x_train.fillna(0, inplace=True)
-x_val.fillna(0, inplace=True)
+############################################################ drop low variance columns
+# scaler = StandardScaler()
+# x_train = scaler.fit_transform(x_train)
+# selector = VarianceThreshold(threshold=0.01)
+# x_train = selector.fit_transform(x_train)
+
+############################### High correlated features
+# corr_matrix = x_train.corr().abs()
+# upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+# to_drop = [column for column in upper.columns if any(upper[column] > 0.9)]
+# print(to_drop)
+# to_drop = ['IMONTH', '_PSU', 'PVTRESD1', 'STATERES', 'LADULT', 'CTELNUM1', 'CELLFON2', 'CADULT', 'PVTRESD2', 'CSTATE', 'LANDLINE', 'NUMHHOL2', 'VIGLUMA2', 'VIMACDG2', 'CDASSIST', 'CDSOCIAL', 'ASPUNSAF', 'ARTHEDU', 'SCNTMEL1', 'ADFAIL', 'ADTHINK', 'ADMOVE', 'MISTMNT', 'ADANXEV', 'QSTVER', '_STSTR', '_RAWRAKE', '_WT2RAKE', '_CPRACE', '_DUALCOR', '_MRACE1', '_RACEGR3', '_AGE65YR', '_AGE80', '_AGE_G', 'HTM4', '_BMI5CAT', '_EDUCAG', 'DROCDY3_', '_RFBING5', '_DRNKWEK', '_RFDRHV5', '_MISVEGN', '_FRTRESP', '_VEGRESP', '_FRTLT1', '_VEGLT1', '_FRUITEX', '_VEGETEX', 'FC60_', 'ACTIN21_', 'PAMISS1_', 'PAMIN11_', 'PAMIN21_', '_PAINDX1', '_PA150R2', '_PA300R2', '_PA30021', '_PAREC1', '_PASTAE1', '_RFSEAT2', '_RFSEAT3', '_PNEUMO2', '_AIDTST3']
+# x_train = x_train.drop(columns=to_drop)
+################################################## PCA
+# pca = PCA(n_components=150)  
+# x_train = pca.fit_transform(x_train)
 
 x_train = np.array(x_train)
+x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+y_train = y_train.values.ravel()
+y_val = y_val.values.ravel()
+####################################### Balancing the data #########################
 x_train_1 = x_train[y_train == 1]
 y_train_1 = y_train[y_train == 1]
 x_train_0 = x_train[y_train == 0]
 y_train_0 = y_train[y_train == 0]
-
-####################################### Balancing the data #########################
 
 # x_train = np.concatenate([x_train] + [x_train_1] * 9)
 # y_train = np.concatenate([y_train] + [y_train_1] * 9)
@@ -44,45 +66,70 @@ y_train_0 = y_train[y_train == 0]
 # Validation Accuracy: 73.59%
 # Validation F1 Score: 0.69
 
-num_samples_to_select = int(len(x_train_1) * 2.5)
-random_indices = np.random.choice(len(x_train_0), size=num_samples_to_select, replace=False)
-x_train_0_undersampled = x_train_0[random_indices]
-y_train_0_undersampled = y_train_0[random_indices]
-x_train = np.concatenate([x_train_0_undersampled, x_train_1])
-y_train = np.concatenate([y_train_0_undersampled, y_train_1])
-shuffle_indices = np.random.permutation(len(y_train))
-x_train = x_train[shuffle_indices]
-y_train = y_train[shuffle_indices]
+# num_samples_to_select = int(len(x_train_1) * 2.5)
+# random_indices = np.random.choice(len(x_train_0), size=num_samples_to_select, replace=False)
+# x_train_0_undersampled = x_train_0[random_indices]
+# y_train_0_undersampled = y_train_0[random_indices]
+# x_train = np.concatenate([x_train_0_undersampled, x_train_1])
+# y_train = np.concatenate([y_train_0_undersampled, y_train_1])
+# shuffle_indices = np.random.permutation(len(y_train))
+# x_train = x_train[shuffle_indices]
+# y_train = y_train[shuffle_indices]
 pos = sum(y_train == 1)
 neg = len(y_train) - pos
 print(pos, neg)
 ###########################################################################################
+sample_weights=np.where(y_train == 1, 3.5, 1)
 
-dtrain = xgb.DMatrix(x_train, label=y_train)
-dval = xgb.DMatrix(x_val, label=y_val)
+x_train = xgb.DMatrix(x_train, label=y_train, weight=sample_weights)
+x_val = xgb.DMatrix(x_val, label=y_val)
 params = {
-    'objective': 'binary:logistic',  # Binary classification
-    'max_depth': 12,  # Maximum depth of the tree
-    'eta': 0.10,  # Learning rate
+    'objective': 'binary:logistic',
+    'max_depth': 6,
+    'eta': 0.10  # Initial learning rate
 }
+num_boost_round = 160
+eta_decay = 0.95  # Factor to decrease eta
+decay_interval = 40  # Decrease eta every 50 rounds
+model = None
+for i in range(0, num_boost_round, decay_interval):
+    params['eta'] *= eta_decay
+    model = xgb.train(
+        params,
+        x_train,
+        num_boost_round=decay_interval,
+        xgb_model=model,  
+        # evals=[(x_val, 'eval')],
+        # early_stopping_rounds=20  
+    )
 
-bst = xgb.train(params, dtrain, num_boost_round=45) #, evals=[(dval, 'eval')], early_stopping_rounds=30)
+"""
+Validation F1 Score: 0.4382
+Validation Recall: 0.513
+Validation Precision: 0.382
+"""
+# model = xgb.XGBClassifier(objective='binary:logistic', max_depth=7, eta=0.10, n_estimators=300) #7, 0.1, 200-> 0.4323
+# model.fit(x_train, y_train, sample_weight=sample_weights)
 
-y_train_pred_proba = bst.predict(dtrain)  # Get probability predictions
+
+y_train_pred_proba = model.predict(x_train)  # Get probability predictions
 y_train_pred = [1 if pred > 0.5 else 0 for pred in y_train_pred_proba]  # Convert to 1 or 0
 train_accuracy = accuracy_score(y_train, y_train_pred)
 train_f1 = f1_score(y_train, y_train_pred)  # Calculate F1 score for training
 print(f'Train Accuracy: {train_accuracy * 100:.2f}%')
 print(f'Train F1 Score: {train_f1:.2f}')
 
-y_val_pred_proba = bst.predict(dval)  # Get probability predictions
+y_val_pred_proba = model.predict(x_val)  # Get probability predictions
 y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
 val_accuracy = accuracy_score(y_val, y_val_pred)
-print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
-
 
 val_f1 = f1_score(y_val, y_val_pred)
-print(f'Validation F1 Score of 1-0: {val_f1:.4f}')
+val_recall = recall_score(y_val, y_val_pred)
+val_precision = precision_score(y_val, y_val_pred)
+print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
+print(f'Validation F1 Score: {val_f1:.4f}')
+print(f'Validation Recall: {val_recall:.3f}')
+print(f'Validation Precision: {val_precision:.3f}') #low: many of the predicted 1s are false
 
 pos = sum(y_val_pred)
 neg = len(y_val_pred) - pos
