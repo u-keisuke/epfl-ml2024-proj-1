@@ -196,8 +196,6 @@ class BoostForest():
                                             max_features=max_features, 
                                             replace=False) 
 
-
-
             class_estimator.fit(X, y, previous_prediction)
             logodds += self.learning_rate * class_estimator.predict_logodds(X)
             previous_prediction = logodss2prob(logodds) # for training the next tree
@@ -207,7 +205,7 @@ class BoostForest():
     def predict(self, X):
         logodds = np.zeros(len(X)) + 0.5
         for Tree, lr in self.Forest:
-            logodds = + lr * Tree.predict_logodds(X)
+            logodds += lr * Tree.predict_logodds(X)
             print(logodds)
         return logodss2prob(logodds)
          
