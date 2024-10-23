@@ -186,7 +186,8 @@ class BoostForest():
         if self.reduce_features:
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
         
-        previous_prediction = np.random.rand(len(X)) # any better initializations?
+        # previous_prediction = np.random.rand(len(X)) # any better initializations?
+        previous_prediction = np.zeros(len(X)) + 0.5
         logodds = prob2logodds(previous_prediction)
         
         for _ in range(self.num_trees):
@@ -195,24 +196,18 @@ class BoostForest():
                                             max_features=max_features, 
                                             replace=False) 
 
-            # objects_idxs = np.random.choice(len(X[:, 0]), len(X[:, 0]), replace=True)
-            # X_subset = X[objects_idxs, :]
-            # y_subset = y[objects_idxs]
-            # choose random features:
-            feature_ids = np.random.choice(len(X[0, :]), len(X[0, :]), replace=True)
-            X_subset = X[:, feature_ids]
-            
-            print(X_subset.shape)
 
-            class_estimator.fit(X_subset, y, previous_prediction)
-            logodds += self.learning_rate * class_estimator.predict_logodds(X_subset)
+
+            class_estimator.fit(X, y, previous_prediction)
+            logodds += self.learning_rate * class_estimator.predict_logodds(X)
             previous_prediction = logodss2prob(logodds) # for training the next tree
             Forest.append((class_estimator, self.learning_rate))
         self.Forest = Forest
 
     def predict(self, X):
-        logodds_include = np.zeros((len(X), self.n_classes))
+        logodds = np.zeros(len(X)) + 0.5
         for Tree, lr in self.Forest:
-            logodds_include = + lr * Tree.predict_logodds(X)
-        return logodss2prob(logodds_include)
+            logodds = + lr * Tree.predict_logodds(X)
+            print(logodds)
+        return logodss2prob(logodds)
          

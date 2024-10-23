@@ -16,14 +16,14 @@ y_train[y_train==-1] = 0
 x_train = np.array(x_train)
 y_train = np.array(y_train)
 print(x_train.shape)
-x_train = x_train[:1000, :]
-y_train = y_train[:1000, :]
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+x_train = x_train[:5000, :]
+y_train = y_train[:5000, :]
+x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.1, random_state=42)
 
-
-classifier_forest = BoostForest(max_depth=5, learning_rate=0.2, random_state=None, num_trees=100)
+classifier_forest = BoostForest(max_depth=6, learning_rate=0.2, random_state=None, num_trees=10)
 print("starting" )
 start = time.time()
+# sampleweight = ..
 classifier_forest.fit(x_train, y_train)
 print("finished", time.time()-start)
 
