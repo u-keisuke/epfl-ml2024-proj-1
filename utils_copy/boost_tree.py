@@ -47,29 +47,31 @@ class BoostTree():
         self.gamma_regularizer = gamma_regularizer
         self.lambda_regularizer = lambda_regularizer
 
-    def calculate_similarity(self, y, prev_predictions):
-        residuals = y - prev_predictions
+    def calculate_similarity(self, y, prev_predictions, sample_weights):
+        residuals = sample_weights * (y - prev_predictions)
         similarity = (residuals.sum())**2 
-        similarity /= (np.sum(prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
+        similarity /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
 
         # print("similarity2", similarity)
         return similarity
-
-    def calculate_logodds(self, y, prev_predictions):
-        residuals = y - prev_predictions
+    
+    def calculate_logodds(self, y, prev_predictions, sample_weights):
+        residuals = sample_weights * (y - prev_predictions)
         logodds = (residuals.sum())
-        logodds /= (np.sum(prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
+        logodds /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
         return logodds
 
-    def make_split(self, feature_index, threshold, X_subset, y_subset, prev_predictions):
+    def make_split(self, feature_index, threshold, X_subset, y_subset, prev_predictions, sample_weights):
         index_left = X_subset[:, feature_index] < threshold
         index_right = X_subset[:, feature_index] >= threshold
-        X_left, y_left, prev_predictions_left = X_subset[index_left, :], y_subset[index_left], prev_predictions[index_left]
-        X_right, y_right, prev_predictions_right = X_subset[index_right, :], y_subset[index_right], prev_predictions[index_right]
-        return (X_left, y_left, prev_predictions_left), (X_right, y_right, prev_predictions_right)
+        X_left, y_left, prev_predictions_left, sample_weights_L = \
+            X_subset[index_left, :], y_subset[index_left], prev_predictions[index_left], sample_weights[index_left]
+        X_right, y_right, prev_predictions_right, sample_weights_R = \
+            X_subset[index_right, :], y_subset[index_right], prev_predictions[index_right], sample_weights[index_right]
+        return (X_left, y_left, prev_predictions_left, sample_weights_L), (X_right, y_right, prev_predictions_right, sample_weights_R)
     
 
-    def choose_best_split(self, X_subset, y_subset, prev_predictions):
+    def choose_best_split(self, X_subset, y_subset, prev_predictions, sample_weights):
         # Bruteforce selection. Can we do better?
         if self.random_state:
             np.random.seed(self.random_state)
@@ -79,7 +81,7 @@ class BoostTree():
         best_gain = -np.inf
         feature_index = 0
         threshold = 0
-        similarity = self.calculate_similarity(y_subset, prev_predictions)
+        similarity = self.calculate_similarity(y_subset, prev_predictions, sample_weights)
         for i in range(len(X_subset[0])):
             X_featured = X_subset[:, i]
             thresholds = np.unique(X_featured)
@@ -88,9 +90,12 @@ class BoostTree():
                 pred_R = prev_predictions[X_featured >= thread] 
                 y_L = y_subset[X_featured < thread]
                 y_R = y_subset[X_featured >= thread]
+
+                sample_weights_L = sample_weights[X_featured < thread]
+                sample_weights_R = sample_weights[X_featured >= thread]
                 if not (y_L.any() and y_L.any()):
                     continue
-                gain = self.calculate_similarity(y_L, pred_L) +  self.calculate_similarity(y_R, pred_R) - similarity
+                gain = self.calculate_similarity(y_L, pred_L, sample_weights_L) +  self.calculate_similarity(y_R, pred_R, sample_weights_R) - similarity
 
                 if gain > best_gain and gain>=self.gamma_regularizer:
                     threshold = thread
@@ -100,40 +105,37 @@ class BoostTree():
             return None, None # to unpack            
         return feat_idxs[feature_index], threshold
     
-    def make_tree(self, X_subset, y_subset, depth, prev_predictions):
+    def make_tree(self, X_subset, y_subset, depth, prev_predictions, sample_weights):
         n_labels = len(np.unique(y_subset)) 
         if (depth == 1 or n_labels == 1):
-            # value = np.sum(y_subset, axis=0)
-            logodds = self.calculate_logodds(y_subset, prev_predictions)
+            logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
             return Node(feature_index=None, threshold=None, logodds=logodds) #value.argmax()
             
-        best_feat, best_thresh = self.choose_best_split(X_subset, y_subset, prev_predictions)
+        best_feat, best_thresh = self.choose_best_split(X_subset, y_subset, prev_predictions, sample_weights)
         if not best_feat: # gain is negative: stop expanding the tree
-            # value = np.sum(y_subset, axis=0)
-            logodds = self.calculate_logodds(y_subset, prev_predictions)
+            logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
             return Node(feature_index=None, threshold=None, logodds=logodds) #value.argmax()
         
         new_node = Node(best_feat, best_thresh)
-        (X_left, y_left, prev_predictions_Left), (X_right, y_right, prev_predictions_Right) = \
-            self.make_split(best_feat, best_thresh, X_subset, y_subset, prev_predictions)
+        (X_left, y_left, prev_predictions_Left, sample_weights_L), (X_right, y_right, prev_predictions_Right, sample_weights_R) = \
+            self.make_split(best_feat, best_thresh, X_subset, y_subset, prev_predictions, sample_weights)
 
         if len(X_left) < self.min_samples_split or len(X_right) < self.min_samples_split:
-            # value = np.sum(y_subset, axis=0)
-            logodds = self.calculate_logodds(y_subset, prev_predictions)
+            logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
             return Node(feature_index=None, threshold=None, logodds=logodds) #value.argmax(),
 
-        new_node.left_child = self.make_tree(X_left, y_left, depth-1, prev_predictions_Left)
-        new_node.right_child = self.make_tree(X_right, y_right, depth-1, prev_predictions_Right)
+        new_node.left_child = self.make_tree(X_left, y_left, depth-1, prev_predictions_Left, sample_weights_L)
+        new_node.right_child = self.make_tree(X_right, y_right, depth-1, prev_predictions_Right, sample_weights_R)
 
         return new_node
 
 
-    def fit(self, X, y, prev_predictions):
+    def fit(self, X, y, prev_predictions, sample_weights):
 
         # y = one_hot_encode(2, y)
         if not self.max_features:
             self.max_features = len(X[0])
-        self.root = self.make_tree(X, y, self.max_depth, prev_predictions)
+        self.root = self.make_tree(X, y, self.max_depth, prev_predictions, sample_weights)
         
     def predict_logodds(self, X):
         pred_logodds = np.zeros((len(X)))
@@ -176,12 +178,14 @@ class BoostForest():
         self.gamma_regularizer = gamma_regularizer # regularize the number of leaves
         self.learning_rate = learning_rate
 
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weights=None):
         Forest = []
 
         if self.reduce_features:
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
-        
+        if sample_weights is None:
+            sample_weights = np.ones(len(y))
+
         # prev_prediction = np.random.rand(len(X)) # any better initializations?
         prev_prediction = np.zeros(len(X)) + 0.5
         logodds = prob2logodds(prev_prediction)
@@ -195,7 +199,7 @@ class BoostForest():
                                             lambda_regularizer=self.lambda_regularizer,
                                             replace=False) 
 
-            class_estimator.fit(X, y, prev_prediction)
+            class_estimator.fit(X, y, prev_prediction, sample_weights=sample_weights)
             logodds += self.learning_rate * class_estimator.predict_logodds(X)
 
             logodds = np.clip(logodds, -100, 100)
