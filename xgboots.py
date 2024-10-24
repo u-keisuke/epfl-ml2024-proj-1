@@ -85,13 +85,15 @@ params = {
     'objective': 'binary:logistic',
     'max_depth': 6,
     'eta': 0.10,  # Initial learning rate
+    "gamma": 0,
+    "lambda": 1,
     # "min_child_weight": 5
 }
 num_boost_round = 160
 eta_decay = 0.95  # Factor to decrease eta
 decay_interval = 40  # Decrease eta every 50 rounds
 model = None
-for i in range(0, num_boost_round, decay_interval):
+for _ in range(0, num_boost_round, decay_interval):
     params['eta'] *= eta_decay
     model = xgb.train(
         params,

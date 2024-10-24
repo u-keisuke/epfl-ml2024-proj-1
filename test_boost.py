@@ -21,8 +21,8 @@ y_train = y_train.values.ravel()
 y_val = y_val.values.ravel()
 
 y_train = np.array(y_train)
-# x_train = x_train[:10000, :]
-# y_train = y_train[:10000]
+x_train = x_train[:10000, :]
+y_train = y_train[:10000]
 
 
 ############################################### Oversampling
@@ -37,7 +37,8 @@ pos = sum(y_train == 1)
 neg = len(y_train) - pos
 print(pos, neg)
 
-classifier_forest = BoostForest(max_depth=6, learning_rate=0.1, random_state=None, num_trees=100, #160
+classifier_forest = BoostForest(max_depth=6, lr=0.1, decay_rate=0.95, decay_interval=None,
+                                random_state=42, num_trees=20, #160
                                 lambda_regularizer=1, gamma_regularizer=1) #regularization to choose
 
 # need to implement lr decay

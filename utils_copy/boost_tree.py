@@ -51,8 +51,6 @@ class BoostTree():
         residuals = sample_weights * (y - prev_predictions)
         similarity = (residuals.sum())**2 
         similarity /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
-
-        # print("similarity2", similarity)
         return similarity
     
     def calculate_logodds(self, y, prev_predictions, sample_weights):
@@ -112,7 +110,7 @@ class BoostTree():
             return Node(feature_index=None, threshold=None, logodds=logodds) #value.argmax()
             
         best_feat, best_thresh = self.choose_best_split(X_subset, y_subset, prev_predictions, sample_weights)
-        if not best_feat: # gain is negative: stop expanding the tree
+        if best_feat is None: # gain is negative: stop expanding the tree
             logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
             return Node(feature_index=None, threshold=None, logodds=logodds) #value.argmax()
         
@@ -158,11 +156,11 @@ class BoostForest():
     add regularizer???
     """
 
-    def __init__(self, n_classes=None, max_depth=np.inf, min_samples_split=2, 
+    def __init__(self,  max_depth=np.inf, min_samples_split=2, 
                  reduce_features=True,
-                 random_state=None, classif_type="common",
+                 random_state=None, 
                  depth=3, num_trees=10,
-                 learning_rate=0.3,
+                 lr=0.3, decay_rate=1, decay_interval=None,
                  lambda_regularizer=0, gamma_regularizer=0):
         
         self.max_depth = max_depth
@@ -172,11 +170,11 @@ class BoostForest():
         self.reduce_features = reduce_features
         self.random_state = random_state
         self.num_trees = num_trees
-        assert classif_type in {"common", "proba", "both"}
-        self.classif_type = classif_type
         self.lambda_regularizer = lambda_regularizer # regularize the scores
         self.gamma_regularizer = gamma_regularizer # regularize the number of leaves
-        self.learning_rate = learning_rate
+        self.lr = lr
+        self.decay_rate = decay_rate
+        self.decay_interval = decay_interval
 
     def fit(self, X, y, sample_weights=None):
         Forest = []
@@ -185,28 +183,29 @@ class BoostForest():
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
         if sample_weights is None:
             sample_weights = np.ones(len(y))
+        if self.decay_interval is None:
+            self.decay_interval = self.num_trees
 
-        # prev_prediction = np.random.rand(len(X)) # any better initializations?
-        prev_prediction = np.zeros(len(X)) + 0.5
+        # prev_prediction = np.random.rand(len(X)) 
+        prev_prediction = np.zeros(len(X)) + 0.5 # any better initializations?
         logodds = prob2logodds(prev_prediction)
         
-        for _ in range(self.num_trees):
-            # print("prev_prediction", prev_prediction, np.all(prev_prediction>=0))
-            class_estimator = BoostTree(max_depth=self.max_depth, 
-                                            min_samples_split=self.min_samples_split, 
-                                            max_features=max_features, 
-                                            gamma_regularizer=self.gamma_regularizer, # regularize the number of leaves
-                                            lambda_regularizer=self.lambda_regularizer,
-                                            replace=False) 
+        lr = self.lr
+        for _ in range(0, self.num_trees, self.decay_interval):
+            lr = lr * self.decay_rate
+            for _ in range(self.decay_interval):
+                class_estimator = BoostTree(max_depth=self.max_depth, 
+                                                min_samples_split=self.min_samples_split, 
+                                                max_features=max_features, 
+                                                gamma_regularizer=self.gamma_regularizer, # regularize the number of leaves
+                                                lambda_regularizer=self.lambda_regularizer,
+                                                replace=False) 
 
-            class_estimator.fit(X, y, prev_prediction, sample_weights=sample_weights)
-            logodds += self.learning_rate * class_estimator.predict_logodds(X)
-
-            logodds = np.clip(logodds, -100, 100)
-            prev_prediction = logodss2prob(logodds) # for training the next tree
-            # print(np.all(prev_prediction>=0) * np.all(prev_prediction<=1))
-            
-            Forest.append((class_estimator, self.learning_rate))
+                class_estimator.fit(X, y, prev_prediction, sample_weights=sample_weights)
+                logodds += lr * class_estimator.predict_logodds(X)
+                logodds = np.clip(logodds, -100, 100)
+                prev_prediction = logodss2prob(logodds) # for training the next tree            
+                Forest.append((class_estimator, lr))
         self.Forest = Forest
 
     def predict(self, X):
