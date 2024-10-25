@@ -11,6 +11,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
 from sklearn.feature_selection import VarianceThreshold
 
+from utils.helpers import create_csv_submission
+
 import numpy as np
 
 x_train = pd.read_csv('dataset/x_train.csv', index_col=0)
@@ -46,14 +48,15 @@ x_train.fillna(0, inplace=True)
 # x_train = pca.fit_transform(x_train)
 
 x_train = np.array(x_train)
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+print(x_train.shape)
+# x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 y_train = y_train.values.ravel()
-y_val = y_val.values.ravel()
+# y_val = y_val.values.ravel()
 ####################################### Balancing the data #########################
-x_train_1 = x_train[y_train == 1]
-y_train_1 = y_train[y_train == 1]
-x_train_0 = x_train[y_train == 0]
-y_train_0 = y_train[y_train == 0]
+# x_train_1 = x_train[y_train == 1]
+# y_train_1 = y_train[y_train == 1]
+# x_train_0 = x_train[y_train == 0]
+# y_train_0 = y_train[y_train == 0]
 
 # x_train = np.concatenate([x_train] + [x_train_1] * 9)
 # y_train = np.concatenate([y_train] + [y_train_1] * 9)
@@ -80,13 +83,14 @@ print(pos, neg)
 sample_weights=np.where(y_train == 1, 3.5, 1)
 
 x_train = xgb.DMatrix(x_train, label=y_train, weight=sample_weights)
-x_val = xgb.DMatrix(x_val, label=y_val)
+# x_val = xgb.DMatrix(x_val, label=y_val)
 params = {
     'objective': 'binary:logistic',
     'max_depth': 6,
     'eta': 0.10,  # Initial learning rate
     "gamma": 0,
     "lambda": 1,
+    # "colsample_bytree": 0.8
     # "min_child_weight": 5
 }
 num_boost_round = 160
@@ -114,33 +118,55 @@ Validation Precision: 0.382
 
 
 y_train_pred_proba = model.predict(x_train)  # Get probability predictions
-y_train_pred = [1 if pred > 0.5 else 0 for pred in y_train_pred_proba]  # Convert to 1 or 0
+y_train_pred = np.array([1 if pred > 0.5 else 0 for pred in y_train_pred_proba])
+print(np.all(y_train_pred==1))
+
 train_accuracy = accuracy_score(y_train, y_train_pred)
 train_f1 = f1_score(y_train, y_train_pred)  # Calculate F1 score for training
 print(f'Train Accuracy: {train_accuracy * 100:.2f}%')
 print(f'Train F1 Score: {train_f1:.2f}')
 
-y_val_pred_proba = model.predict(x_val)  # Get probability predictions
-y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
-val_accuracy = accuracy_score(y_val, y_val_pred)
 
-val_f1 = f1_score(y_val, y_val_pred)
-val_recall = recall_score(y_val, y_val_pred)
-val_precision = precision_score(y_val, y_val_pred)
-print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
-print(f'Validation F1 Score: {val_f1:.4f}')
-print(f'Validation Recall: {val_recall:.3f}')
-print(f'Validation Precision: {val_precision:.3f}') #low: many of the predicted 1s are false
-
-pos = sum(y_val_pred)
-neg = len(y_val_pred) - pos
-print(pos, neg)
-
-pos = sum(y_val)
-neg = len(y_val) - pos
-print(pos, neg)
-
+###################################################### Validation set
+# y_val_pred_proba = model.predict(x_val)  # Get probability predictions
+# y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
+# val_accuracy = accuracy_score(y_val, y_val_pred)
+# val_f1 = f1_score(y_val, y_val_pred)
+# val_recall = recall_score(y_val, y_val_pred)
+# val_precision = precision_score(y_val, y_val_pred)
+# print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
+# print(f'Validation F1 Score: {val_f1:.4f}')
+# print(f'Validation Recall: {val_recall:.3f}')
+# print(f'Validation Precision: {val_precision:.3f}') #low: many of the predicted 1s are false
+# pos = sum(y_val_pred)
+# neg = len(y_val_pred) - pos
+# print(pos, neg)
+# pos = sum(y_val)
+# neg = len(y_val) - pos
+# print(pos, neg)
 # y_val_pred = 1 - y_val_pred
 # y_val = 1 - y_val
 # val_f1 = f1_score(y_val, y_val_pred)  # Calculate F1 score for validation
 # print(f'Validation F1 Score of 0-1: {val_f1:.4f}')
+
+####################################################### Test set
+x_test = pd.read_csv('dataset/x_test.csv')
+x_test.fillna(0, inplace=True)
+
+x_test = np.array(x_test)
+test_ids = x_test[:, 0].astype(dtype=int)
+x_test = x_test[:, 1:] #we don't need ids
+
+print(x_test.shape)
+x_test = xgb.DMatrix(x_test)
+y_pred = model.predict(x_test)
+
+y_pred = np.array([1 if pred > 0.5 else 0 for pred in y_pred])
+
+pos = sum(y_pred.round())
+neg = len(y_pred) - pos
+print(pos, neg)
+
+print(np.all(y_pred==1))
+y_pred = 2 * (y_pred.round()) - 1
+create_csv_submission(test_ids, y_pred, "xgboost_meme")

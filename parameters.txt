@@ -1,0 +1,10 @@
+sample_weights = np.where(y_train == 1, 3.5, 1)
+classifier_forest = BoostForest(max_depth=6, lr=0.1, decay_rate=0.95, decay_interval=40,
+                                random_state=42, num_trees=160, 
+                                lambda_regularizer=1, gamma_regularizer=0)
+
+It took us 42417.25831103325 seconds
+Validation Accuracy: 81.40%
+Validation F1 Score: 0.4008
+Validation Recall: 0.714
+Validation Precision: 0.279

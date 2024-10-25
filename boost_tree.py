@@ -1,15 +1,5 @@
 import numpy as np
-from sklearn.base import BaseEstimator
-from sklearn.preprocessing import OneHotEncoder
-
-
-# def one_hot_encode(n_classes, y):
-#     y_one_hot = np.zeros((len(y), n_classes), dtype=float)
-#     y_one_hot[np.arange(len(y)), y.astype(int)[:, 0]] = 1.
-#     return y_one_hot
-
-# def one_hot_decode(y_one_hot):
-#     return y_one_hot.argmax(axis=1)[:, None]
+import pickle
 
 def prob2logodds(p):
     return np.log(p/(1-p))
@@ -70,11 +60,11 @@ class BoostTree():
     
 
     def choose_best_split(self, X_subset, y_subset, prev_predictions, sample_weights):
-        # Bruteforce selection. Can we do better?
+
         if self.random_state:
             np.random.seed(self.random_state)
         feat_idxs = np.random.choice(len(X_subset[0]), self.max_features, replace=self.replace)
-        X_subset = X_subset[:, feat_idxs]
+        X_subset = X_subset[:, feat_idxs] #to consider only part of the features
 
         best_gain = -np.inf
         feature_index = 0
@@ -152,10 +142,6 @@ class BoostTree():
     
 
 class BoostForest():
-    """
-    add regularizer???
-    """
-
     def __init__(self,  max_depth=np.inf, min_samples_split=2, 
                  reduce_features=True,
                  random_state=None, 
@@ -166,7 +152,7 @@ class BoostForest():
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.depth = depth
-        self.root = None # Use the Node class to initialize it later
+        self.root = None 
         self.reduce_features = reduce_features
         self.random_state = random_state
         self.num_trees = num_trees
@@ -177,8 +163,8 @@ class BoostForest():
         self.decay_interval = decay_interval
 
     def fit(self, X, y, sample_weights=None):
+        """Training part"""
         Forest = []
-
         if self.reduce_features:
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
         if sample_weights is None:
@@ -186,8 +172,8 @@ class BoostForest():
         if self.decay_interval is None:
             self.decay_interval = self.num_trees
 
-        # prev_prediction = np.random.rand(len(X)) 
-        prev_prediction = np.zeros(len(X)) + 0.5 # any better initializations?
+        prev_prediction = np.random.rand(len(X)) 
+        # prev_prediction = np.zeros(len(X)) + 0.5 # any better initializations?
         logodds = prob2logodds(prev_prediction)
         
         lr = self.lr
@@ -206,12 +192,26 @@ class BoostForest():
                 logodds = np.clip(logodds, -100, 100)
                 prev_prediction = logodss2prob(logodds) # for training the next tree            
                 Forest.append((class_estimator, lr))
+            print("finished first round of rate decay; numtrees:", self.decay_interval)
         self.Forest = Forest
 
     def predict(self, X):
+        """Test the model"""
         logodds = np.zeros(len(X)) + 0.5
         for Tree, lr in self.Forest:
             logodds += lr * Tree.predict_logodds(X)
         logodds = np.clip(logodds, -100, 100)
         return logodss2prob(logodds)
+
+    def save_model(self, file_path):
+        """Save the trained model"""
+        with open(file_path, 'wb') as file:
+            pickle.dump(self.Forest, file)
+
+    def load_model(self, file_path, num_trees):
+        """Load the trained model"""
+        with open(file_path, 'rb') as file:
+            self.Forest = pickle.load(file)
+            assert num_trees <= len(self.Forest), "The trained boost contains fewer trees than you want to unpack"
+            self.Forest = self.Forest[:num_trees]
          
