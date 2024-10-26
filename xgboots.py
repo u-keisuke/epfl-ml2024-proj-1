@@ -160,7 +160,6 @@ x_test = x_test[:, 1:] #we don't need ids
 print(x_test.shape)
 x_test = xgb.DMatrix(x_test)
 y_pred = model.predict(x_test)
-
 y_pred = np.array([1 if pred > 0.5 else 0 for pred in y_pred])
 
 pos = sum(y_pred.round())
