@@ -170,6 +170,10 @@ class BoostForest():
 
         prev_prediction = np.zeros(len(X)) + 0.5 
         logodds = np.zeros(len(X)) # logodds = prob2logodds(prev_prediction)
+        for Tree, lr in self.Forest: # if we continue training of existing model
+            logodds += lr * Tree.predict_logodds(X)
+        logodds = np.clip(logodds, -100, 100)
+
         lr = self.lr
         for _ in range(0, self.num_trees, self.decay_interval):
             lr = lr * self.decay_rate
@@ -177,13 +181,12 @@ class BoostForest():
                 class_estimator = BoostTree(max_depth=self.max_depth, 
                                                 min_samples_split=self.min_samples_split, 
                                                 max_features=max_features, 
-                                                gamma_regularizer=self.gamma_regularizer, # regularize the number of leaves
+                                                gamma_regularizer=self.gamma_regularizer, 
                                                 lambda_regularizer=self.lambda_regularizer,
                                                 cover=self.cover,
                                                 replace=False) 
 
                 class_estimator.fit(X, y, prev_prediction, sample_weights=sample_weights)
-                
                 logodds += lr * class_estimator.predict_logodds(X)
                 logodds = np.clip(logodds, -100, 100)
                 prev_prediction = logodss2prob(logodds) # for training the next tree            
@@ -207,10 +210,12 @@ class BoostForest():
         with open(file_path, 'wb') as file:
             pickle.dump(self.Forest, file)
 
-    def load_model(self, file_path, num_trees):
+    def load_model(self, file_path, num_trees=None):
         """Load the trained model"""
         with open(file_path, 'rb') as file:
             self.Forest = pickle.load(file)
+            if num_trees is None:
+                num_trees = len(self.Forest)
             assert num_trees <= len(self.Forest), "The trained boost contains fewer trees than you want to unpack"
             self.Forest = self.Forest[:num_trees]
          

@@ -48,9 +48,12 @@ x_train.fillna(0, inplace=True)
 # x_train = pca.fit_transform(x_train)
 
 x_train = np.array(x_train)
-print(x_train.shape)
-# x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
-y_train = y_train.values.ravel()
+y_train = np.array(y_train)
+x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+# x_train = x_train[:100000, :]
+# y_train = y_train[:100000, 0]
+
+# y_train = y_train.values.ravel()
 # y_val = y_val.values.ravel()
 ####################################### Balancing the data #########################
 # x_train_1 = x_train[y_train == 1]
@@ -83,13 +86,14 @@ print(pos, neg)
 sample_weights=np.where(y_train == 1, 3.5, 1)
 
 x_train = xgb.DMatrix(x_train, label=y_train, weight=sample_weights)
-# x_val = xgb.DMatrix(x_val, label=y_val)
+x_val = xgb.DMatrix(x_val, label=y_val)
 params = {
     'objective': 'binary:logistic',
     'max_depth': 6,
     'eta': 0.10,  # Initial learning rate
     "gamma": 0,
     "lambda": 1,
+    "subsample": 1,
     # "colsample_bytree": 0.8
     # "min_child_weight": 5
 }
@@ -107,16 +111,7 @@ for _ in range(0, num_boost_round, decay_interval):
         # evals=[(x_val, 'eval')],
         # early_stopping_rounds=20  
     )
-
-"""
-Validation F1 Score: 0.4382
-Validation Recall: 0.513
-Validation Precision: 0.382
-"""
-# model = xgb.XGBClassifier(objective='binary:logistic', max_depth=7, eta=0.10, n_estimators=300) #7, 0.1, 200-> 0.4323
-# model.fit(x_train, y_train, sample_weight=sample_weights)
-
-
+    
 y_train_pred_proba = model.predict(x_train)  # Get probability predictions
 y_train_pred = np.array([1 if pred > 0.5 else 0 for pred in y_train_pred_proba])
 print(np.all(y_train_pred==1))
@@ -128,16 +123,16 @@ print(f'Train F1 Score: {train_f1:.2f}')
 
 
 ###################################################### Validation set
-# y_val_pred_proba = model.predict(x_val)  # Get probability predictions
-# y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
-# val_accuracy = accuracy_score(y_val, y_val_pred)
-# val_f1 = f1_score(y_val, y_val_pred)
-# val_recall = recall_score(y_val, y_val_pred)
-# val_precision = precision_score(y_val, y_val_pred)
-# print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
-# print(f'Validation F1 Score: {val_f1:.4f}')
-# print(f'Validation Recall: {val_recall:.3f}')
-# print(f'Validation Precision: {val_precision:.3f}') #low: many of the predicted 1s are false
+y_val_pred_proba = model.predict(x_val)  # Get probability predictions
+y_val_pred = np.array([1 if pred > 0.5 else 0 for pred in y_val_pred_proba])  # Convert to 1 or 0
+val_accuracy = accuracy_score(y_val, y_val_pred)
+val_f1 = f1_score(y_val, y_val_pred)
+val_recall = recall_score(y_val, y_val_pred)
+val_precision = precision_score(y_val, y_val_pred)
+print(f'Validation Accuracy: {val_accuracy * 100:.2f}%')
+print(f'Validation F1 Score: {val_f1:.4f}')
+print(f'Validation Recall: {val_recall:.3f}')
+print(f'Validation Precision: {val_precision:.3f}') #low: many of the predicted 1s are false
 # pos = sum(y_val_pred)
 # neg = len(y_val_pred) - pos
 # print(pos, neg)
