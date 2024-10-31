@@ -18,9 +18,6 @@ class Node:
        
         
 class BoostTree():
-    """
-    change the VALUES in the leaves: in case of 
-    """
     def __init__(self, n_classes=None, max_depth=np.inf, min_samples_split=2, 
                  max_features=None, 
                  random_state=None, replace=False, 
@@ -40,18 +37,21 @@ class BoostTree():
         self.cover = cover
 
     def calculate_similarity(self, y, prev_predictions, sample_weights):
+        """calculating similarity for computing Gain function and choosing best (feature, threshold)"""
         residuals = sample_weights * (y - prev_predictions)
         similarity = (residuals.sum())**2 
         similarity /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
         return similarity
     
     def calculate_logodds(self, y, prev_predictions, sample_weights):
+        """calculating logodds for leaf nodes"""
         residuals = sample_weights * (y - prev_predictions)
         logodds = (residuals.sum())
         logodds /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
         return logodds
 
     def make_split(self, feature_index, threshold, X_subset, y_subset, prev_predictions, sample_weights):
+        """split the data given the feature and threshold"""
         index_left = X_subset[:, feature_index] < threshold
         index_right = X_subset[:, feature_index] >= threshold
         X_left, y_left, prev_predictions_left, sample_weights_L = \
@@ -62,7 +62,7 @@ class BoostTree():
     
 
     def choose_best_split(self, X_subset, y_subset, prev_predictions, sample_weights):
-
+        """at the given node find the best pair (feature, threshold)"""
         if self.random_state:
             np.random.seed(self.random_state)
         feat_idxs = np.random.choice(len(X_subset[0]), self.max_features, replace=self.replace)
@@ -93,10 +93,11 @@ class BoostTree():
                     feature_index = i
                     best_gain = gain
         if best_gain<0:
-            return None, None # to unpack            
+            return None, None             
         return feat_idxs[feature_index], threshold
     
     def make_tree(self, X_subset, y_subset, depth, prev_predictions, sample_weights):
+        # recursively add nodes to the tree
         n_labels = len(np.unique(y_subset)) 
         if (depth == 1 or n_labels == 1):
             logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
@@ -116,11 +117,13 @@ class BoostTree():
         return new_node
 
     def fit(self, X, y, prev_predictions, sample_weights):
+        """Find the optimal tree give n the data X and labels y + previous predictions and sample_weights"""
         if not self.max_features:
             self.max_features = len(X[0])
         self.root = self.make_tree(X, y, self.max_depth, prev_predictions, sample_weights)
         
     def predict_logodds(self, X):
+        """Testing part: take data X and run throught the whole tree to get logodds"""
         pred_logodds = np.zeros((len(X)))
         for i in range(len(X)): 
             pred_logodds[i] = self.pass_tree(X[i, :], self.root)
@@ -158,7 +161,7 @@ class BoostForest():
         self.Forest = []
 
     def fit(self, X, y, sample_weights=None, file_path=None):
-        """Training part"""
+        """Training part: create trees sequentially"""
         if self.max_features is None:
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
         else: 
@@ -169,10 +172,11 @@ class BoostForest():
             self.decay_interval = self.num_trees
 
         prev_prediction = np.zeros(len(X)) + 0.5 
-        logodds = np.zeros(len(X)) # logodds = prob2logodds(prev_prediction)
+        logodds = np.zeros(len(X)) 
         for Tree, lr in self.Forest: # if we continue training of existing model
             logodds += lr * Tree.predict_logodds(X)
         logodds = np.clip(logodds, -100, 100)
+        prev_prediction = logodss2prob(prev_prediction)
 
         lr = self.lr
         for _ in range(0, self.num_trees, self.decay_interval):
@@ -191,7 +195,6 @@ class BoostForest():
                 logodds = np.clip(logodds, -100, 100)
                 prev_prediction = logodss2prob(logodds) # for training the next tree            
                 self.Forest.append((class_estimator, lr))
-                print("fitted")
                 if file_path:
                     self.save_model(file_path)
             print("finished first round of rate decay; numtrees:", self.decay_interval)
