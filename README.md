@@ -12,7 +12,12 @@ This project implements a Boosted Decision Tree model and Logistic Regression fo
    - **Randomized Feature Selection**: Selects a subset of features for each tree to speed up training.
    - **Save and load functionalities**:  Enables efficient model reuse and iterative training.
 
-2. **Logistic Regression**: A robust baseline model, complementing the Boosted Decision Tree to provide interpretable insights into Cardiovascular Disease Risk prediction. ?????????????????????????
+2. **Logistic Regression**: A robust baseline model, complementing the Boosted Decision Tree to provide interpretable insights into Cardiovascular Disease Risk prediction:
+   - **Handling Imbalanced Classes**: Adjusts weights for binary cross entropy to prioritize underrepresented classes, making it suitable for skewed datasets, like ours.
+   - **Missing value handling**: Changing NaN values to zeros in order to run the logistic regression
+   - **Normalizing the dataset**: MinMax normalization to make features robuster
+   - **Removing correlated features**: Increases convergence of the logistic regression
+
 
 ### Repository Structure
 
@@ -20,7 +25,7 @@ This project implements a Boosted Decision Tree model and Logistic Regression fo
 - `implementations.py`: Contains helper functions for linear regression, logistic regression.
 - `boost_tree.py`: Defines the core classes (`BoostTree` and `BoostForest`) implementing the boosting algorithm (self-implemented xgboost) and the decision tree structure.
 - `helper.py`: contains the functions to read dataset, calculate metrics, and write the submission file.
-- `logreg.ipynb`: ??????????????????
+- `logreg.ipynb`: contains code for running ablation study for logistic regression.
 ### Installation
 
 Download the code:
