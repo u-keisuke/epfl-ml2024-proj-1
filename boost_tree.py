@@ -2,12 +2,15 @@ import numpy as np
 import pickle
 
 def prob2logodds(p):
+    """Convert probability to log odds."""
     return np.log(p/(1-p))
 
 def logodss2prob(log_odds):
+    """Convert log odds to probability."""
     return np.exp(log_odds)/(1+np.exp(log_odds))
 
 
+# Node class for tree structure, holds feature index, threshold, and log odds value
 class Node:
     def __init__(self, feature_index, threshold, logodds=None):
         self.feature_index = feature_index
@@ -16,7 +19,7 @@ class Node:
         self.left_child = None
         self.right_child = None 
        
-        
+# BoostTree class for constructing a single decision tree        
 class BoostTree():
     def __init__(self, n_classes=None, max_depth=np.inf, min_samples_split=2, 
                  max_features=None, 
@@ -37,21 +40,21 @@ class BoostTree():
         self.cover = cover
 
     def calculate_similarity(self, y, prev_predictions, sample_weights):
-        """calculating similarity for computing Gain function and choosing best (feature, threshold)"""
+        """Calculating similarity for Gain function and choosing best (feature, threshold)."""
         residuals = sample_weights * (y - prev_predictions)
         similarity = (residuals.sum())**2 
         similarity /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
         return similarity
     
     def calculate_logodds(self, y, prev_predictions, sample_weights):
-        """calculating logodds for leaf nodes"""
+        """Calculating logodds for leaf nodes"""
         residuals = sample_weights * (y - prev_predictions)
         logodds = (residuals.sum())
         logodds /= (np.sum(sample_weights * prev_predictions*(1-prev_predictions)) + self.lambda_regularizer)
         return logodds
 
     def make_split(self, feature_index, threshold, X_subset, y_subset, prev_predictions, sample_weights):
-        """split the data given the feature and threshold"""
+        """Split the data given the feature and threshold."""
         index_left = X_subset[:, feature_index] < threshold
         index_right = X_subset[:, feature_index] >= threshold
         X_left, y_left, prev_predictions_left, sample_weights_L = \
@@ -62,16 +65,17 @@ class BoostTree():
     
 
     def choose_best_split(self, X_subset, y_subset, prev_predictions, sample_weights):
-        """at the given node find the best pair (feature, threshold)"""
+        """At the given node find the best pair (feature, threshold)."""
         if self.random_state:
             np.random.seed(self.random_state)
         feat_idxs = np.random.choice(len(X_subset[0]), self.max_features, replace=self.replace)
-        X_subset = X_subset[:, feat_idxs] # part of the features
+        X_subset = X_subset[:, feat_idxs]  # Subset of features
 
         best_gain = -np.inf
         feature_index = None
         threshold = None
         similarity = self.calculate_similarity(y_subset, prev_predictions, sample_weights)
+        # Loop through features and their unique values to find best gain
         for i in range(len(X_subset[0])):
             X_featured = X_subset[:, i]
             thresholds = np.unique(X_featured)
@@ -97,7 +101,7 @@ class BoostTree():
         return feat_idxs[feature_index], threshold
     
     def make_tree(self, X_subset, y_subset, depth, prev_predictions, sample_weights):
-        # recursively add nodes to the tree
+        """Recursively add nodes to the tree."""
         n_labels = len(np.unique(y_subset)) 
         if (depth == 1 or n_labels == 1):
             logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
@@ -106,8 +110,9 @@ class BoostTree():
         best_feat, best_thresh = self.choose_best_split(X_subset, y_subset, prev_predictions, sample_weights)
         if best_feat is None: # gain is negative: stop expanding the tree
             logodds = self.calculate_logodds(y_subset, prev_predictions, sample_weights)
-            return Node(feature_index=None, threshold=None, logodds=logodds) 
-        
+            return Node(feature_index=None, threshold=None, logodds=logodds)
+         
+        # Create new node and split into left and right subtrees
         new_node = Node(best_feat, best_thresh)
         (X_left, y_left, prev_predictions_Left, sample_weights_L), (X_right, y_right, prev_predictions_Right, sample_weights_R) = \
             self.make_split(best_feat, best_thresh, X_subset, y_subset, prev_predictions, sample_weights)
@@ -117,19 +122,20 @@ class BoostTree():
         return new_node
 
     def fit(self, X, y, prev_predictions, sample_weights):
-        """Find the optimal tree give n the data X and labels y + previous predictions and sample_weights"""
+        """Train the tree given the data."""
         if not self.max_features:
             self.max_features = len(X[0])
         self.root = self.make_tree(X, y, self.max_depth, prev_predictions, sample_weights)
         
     def predict_logodds(self, X):
-        """Testing part: take data X and run throught the whole tree to get logodds"""
+        """Testing part: takes data X and runs throught the whole tree to get logodds."""
         pred_logodds = np.zeros((len(X)))
         for i in range(len(X)): 
             pred_logodds[i] = self.pass_tree(X[i, :], self.root)
         return pred_logodds
     
     def pass_tree(self, X, node):
+        """Recursive function to pass through tree and get log odds for the testing part."""
         if node.feature_index is None:
             return node.logodds
         if X[node.feature_index] < node.value:
@@ -137,7 +143,7 @@ class BoostTree():
         else:
             return self.pass_tree(X, node.right_child)
     
-
+# BoostForest class to manage an ensemble of BoostTree trees: train them sequentially and test them
 class BoostForest():
     def __init__(self,  max_depth=np.inf, min_samples_split=2, 
                  random_state=None, 
@@ -161,7 +167,7 @@ class BoostForest():
         self.Forest = []
 
     def fit(self, X, y, sample_weights=None, file_path=None):
-        """Training part: create trees sequentially"""
+        """Training part: builds trees sequentially."""
         if self.max_features is None:
             max_features = np.around(np.sqrt(len(X[0]))).astype(int)
         else: 
@@ -197,11 +203,10 @@ class BoostForest():
                 self.Forest.append((class_estimator, lr))
                 if file_path:
                     self.save_model(file_path)
-            print("finished first round of rate decay; numtrees:", self.decay_interval)
 
 
     def predict(self, X):
-        """Test the model"""
+        """Test the model."""
         logodds = np.zeros(len(X)) # prob2logodds(np.zeros(len(X)) + 0.5)
         for Tree, lr in self.Forest:
             logodds += lr * Tree.predict_logodds(X)
@@ -209,12 +214,12 @@ class BoostForest():
         return logodss2prob(logodds)
 
     def save_model(self, file_path):
-        """Save the trained model"""
+        """Save the trained model."""
         with open(file_path, 'wb') as file:
             pickle.dump(self.Forest, file)
 
     def load_model(self, file_path, num_trees=None):
-        """Load the trained model"""
+        """Load the trained model and specifies the number of trees we want to load from the forest."""
         with open(file_path, 'rb') as file:
             self.Forest = pickle.load(file)
             if num_trees is None:

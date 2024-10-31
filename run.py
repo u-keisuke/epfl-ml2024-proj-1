@@ -3,7 +3,7 @@ import time
 import numpy as np 
 
 from boost_tree import BoostForest
-from utils.helpers import create_csv_submission, load_train_data, train_test_split, load_test_data, accuracy, f1_score
+from helpers import create_csv_submission, load_train_data, train_test_split, load_test_data, accuracy, f1_score
 
 
 ####################################################### Training part
