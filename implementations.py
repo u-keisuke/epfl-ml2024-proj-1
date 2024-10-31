@@ -12,6 +12,7 @@
 
 
 import numpy as np
+
 def compute_loss(y, tx, w):
     """Calculate the loss using either MSE or MAE.
 
