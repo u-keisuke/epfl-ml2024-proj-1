@@ -74,6 +74,8 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         yield y[start_index:end_index], tx[start_index:end_index]
 
 
+
+
 def compute_loss(y, tx, w):
     """Calculate the loss using either MSE or MAE.
 
