@@ -74,8 +74,6 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         yield y[start_index:end_index], tx[start_index:end_index]
 
 
-
-
 def compute_loss(y, tx, w):
     """Calculate the loss using either MSE or MAE.
 
@@ -157,8 +155,8 @@ def ridge_regression(y, tx, lambda_):
 
 
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
-    """Logistic regression using gradient descent. (y in {-1, 1})
-    """
+    """Logistic regression using gradient descent. (y in {-1, 1})"""
+
     def sigmoid(t):
         return 1 / (1 + np.exp(-t))
 
@@ -174,8 +172,8 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
 
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """Regularized logistic regression using gradient descent. (y in {-1, 1} with regularization term lambda_*||w||^2)
-    """
+    """Regularized logistic regression using gradient descent. (y in {-1, 1} with regularization term lambda_*||w||^2)"""
+
     def sigmoid(t):
         return 1 / (1 + np.exp(-t))
 
@@ -186,5 +184,5 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         w = w - gamma * gradient
     # Compute the final loss
     loss = np.sum(np.log(1 + np.exp(-y * (tx @ w)))) + lambda_ * np.linalg.norm(w) ** 2
-    
+
     return w, loss
