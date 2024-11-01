@@ -25,7 +25,7 @@ def train_model():
                                     lambda_regularizer=1, gamma_regularizer=0) # regularization to choose
     start = time.time()
     sample_weights = np.where(y_train == 1, 3.5, 1) # make y=1 more important for loss function
-    file_path = ".../model.pkl"
+    file_path = "model.pkl"
     print("loaded the previous model's", len(classifier_forest.Forest), "trees")
     classifier_forest.fit(x_train, y_train, sample_weights, file_path)
     classifier_forest.save_model(file_path)
@@ -43,7 +43,7 @@ def test_model(file_path="model7.pkl"):
 
     classifier_forest = BoostForest() 
     classifier_forest.load_model(file_path, num_trees=None)
-
+    # print(len(classifier_forest.Forest))
     x_test, test_ids= load_test_data('dataset')
     x_test = np.nan_to_num(x_test)
     x_test = np.array(x_test)
