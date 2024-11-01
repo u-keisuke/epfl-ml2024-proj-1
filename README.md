@@ -55,7 +55,7 @@ To train the model, run the `train_model` function within `run.py`. This functio
 python3 run.py --re-train --model-path models/model_new.pkl
 ```
 
-### 2. Testing Boosting trees**:
+### 2. Testing Boosting trees
 
 To test the model, execute the `run.py` script using the `test_model` function, which requires the path to a pretrained model. This function loads the test dataset, initializes the Boosted Forest model, loads the specified pretrained model, and saves the predictions for the test set in a CSV file.
 ```
