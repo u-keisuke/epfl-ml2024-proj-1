@@ -6,13 +6,14 @@ import numpy as np
 
 def accuracy(y_pred, y_true):
     return np.mean(y_pred == y_true)
-   
+
+
 def f1_score(y_pred, y_true):
-    ind = (y_true == 1)
+    ind = y_true == 1
     tp = sum(y_true[ind] == y_pred[ind])
     fn = sum(y_true[ind] != y_pred[ind])
 
-    ind = (y_true == -1)
+    ind = y_true == -1
     fp = sum(y_true[ind] != y_pred[ind])
 
     pr = tp / (tp + fp) if (tp + fp) > 0 else 0
@@ -20,6 +21,7 @@ def f1_score(y_pred, y_true):
     f1 = 2 * pr * rec / (pr + rec) if (pr + rec) > 0 else 0
 
     return f1
+
 
 def load_train_data(data_path, sub_sample=False):
     """
@@ -51,9 +53,9 @@ def load_train_data(data_path, sub_sample=False):
     if sub_sample:
         y_train = y_train[::50]
         x_train = x_train[::50]
-        train_ids = train_ids[::50]
 
     return x_train, y_train
+
 
 def load_test_data(data_path):
     """
@@ -74,6 +76,7 @@ def load_test_data(data_path):
     x_test = x_test[:, 1:]
 
     return x_test, test_ids
+
 
 def create_csv_submission(ids, y_pred, name):
     """
@@ -97,19 +100,20 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({"Id": int(r1), "Prediction": int(r2)})
 
+
 def train_test_split(X, y, test_size=0.1, random_state=None):
     if random_state is not None:
         np.random.seed(random_state)
-    
+
     n_samples = len(X)
     n_val = int(n_samples * test_size)
-    
+
     indices = np.arange(n_samples)
     np.random.shuffle(indices)
-    
+
     val_indices = indices[:n_val]
     train_indices = indices[n_val:]
     X_train, X_val = X[train_indices], X[val_indices]
     y_train, y_val = y[train_indices], y[val_indices]
-    
+
     return X_train, X_val, y_train, y_val
