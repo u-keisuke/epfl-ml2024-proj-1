@@ -48,7 +48,7 @@ pip install numpy
 Download the dataset from [here](https://github.com/epfml/ML_course/tree/main/projects/project1/data), and place them under the `dataset` folder.
 
 
-### 1. Training Boost trees
+### 1. Training Boost trees (It will take around 72 hours with one server-grade cpu)
 
 To train the model, run the `train_model` function within `run.py`. This function loads the training dataset, initializes the Boosted Forest model, and saves the trained model to the specified file.
 ```
