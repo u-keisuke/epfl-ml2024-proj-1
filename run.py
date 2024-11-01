@@ -35,7 +35,7 @@ def train_model(file_path):
         decay_rate=0.95,
         decay_interval=None, # 40
         random_state=42,
-        num_trees=16,
+        num_trees=61,
         cover=1,
         max_features=0.8,
         lambda_regularizer=1,
@@ -72,6 +72,7 @@ def test_model(file_path, output_path):
     print("Loading the model")
     classifier_forest = BoostForest()
     classifier_forest.load_model(file_path, num_trees=None)
+    print(len(classifier_forest.Forest))
 
     # load the test data
     print("Loading the test data")
